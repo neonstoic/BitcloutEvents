@@ -1,31 +1,87 @@
 <html>
     <body>
-        <div id="content">
+        <div id="content" style="padding:5px; font-size:0.9em; border:1px solid black;box-shadow:0px 0px 1px 1px black; font-family:'Courier New', Courier, monospace;width:600px;height:500px;margin:0 auto;margin-top:50px;overflow-y:scroll">
 
         </div>
     </body>
 
-    
+    <style>
+        .profileImage {
+            width:20px;
+            height:20px;
+            background-repeat:none;
+            display: inline-block;            
+        }
+    </style>
     <script>
-        function loadJSON(callback) {   
-            var xobj = new XMLHttpRequest();
-            xobj.overrideMimeType("application/json");
-            xobj.open('GET', 'out.json', true); // Replace 'my_data' with the path to your file
-            xobj.onreadystatechange = function () {
-                if (xobj.readyState == 4 && xobj.status == "200") {
-                    // Required use of an anonymous callback as .open will NOT return a value but simply returns undefined in asynchronous mode
-                    callback(xobj.responseText);
-                }
-            };
-            xobj.send(null);
+        container = document.getElementById('content');
+        var blockString = '';
+
+        function getProfileImageHTMLFromProfileMap(name, profileMap){
+            if(profileMap[e.Name] != null){            
+                x = profileMap[e.Name]['x'];
+                y = profileMap[e.Name]['y'];
+                console.log(x + ',' + y);
+                imgHTML = '<div class="profileImage" style="background-image:url(out.jpg);background-position:' + x + 'px ' + y + 'px"></div>';
+                return imgHTML;
+            }else {
+                console.log('ProfileMap for ' + e.Name + ' does not exist.');
+            }
+            return '';
         }
-        async function loadcontent(){
-            var resp = await fetch('out.json');
-            console.log(resp);
+
+        function handleLikeEvent(e, profileMap){
+            imgHTML = getProfileImageHTMLFromProfileMap(e.Name, profileMap);            
+            return '<br/>' + imgHTML + e.Name + ' gave ' + e.Count + ' Likes.';    
+        }
+        function handleLikeReceivedEvent(e, profileMap){
+            imgHTML = getProfileImageHTMLFromProfileMap(e.Name, profileMap);      
+            l = '<br/>' + imgHTML + '<a href="https://www.bitclout.com/u/'+e.Name+'">' + e.Name + '</a> ⬅️ ';
+            for(var i=0;i<e.Count;i++)
+                l += '❤️';
+            
+            return l;
+        }
+
+        async function loadcontent(callback){
+            console.log('loading');
+            var resp = await fetch('sum.json');
             const content = await resp.json();
-            //var content = JSON.parse(resp);
-            document.getElementById('content').innerText = JSON.stringify(content);
+            console.log('loaded');
+            const events = content['Events'];
+            const profiles = content['Profiles'];
+
+            //Go through all the profiles and create image texture map
+            profileMap = {};
+            
+            for(i=0;i<profiles.length;i++){
+                n = profiles[i]['Name'];
+                k = profiles[i]['Key'];
+                x = profiles[i]['x'];
+                y = profiles[i]['y'];
+                profileMap[n] = {'Key':k, 'x':x, 'y':y};                
+            }
+            console.log(profileMap);
+
+            for(i=0;i<events.length;i++){
+                e = events[i];
+                callback(e, profileMap);
+            }
+            callback(null, null);
+
+            //document.getElementById('content').innerText = JSON.stringify(content);
         }
-        loadcontent();
+        loadcontent(function(e, profileMap){
+            if(e == null){
+                d = document.createElement('div');
+                d.innerHTML = blockString;
+                blockString = '';
+                container.appendChild(d);
+            }else if(e.type == 'LIKE'){
+                blockString += handleLikeEvent(e, profileMap);
+            }else if(e.type == 'LIKE_RECIEVED'){
+                blockString += handleLikeReceivedEvent(e, profileMap);
+            }
+        });
     </script>
 </html>
